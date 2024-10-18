@@ -46,7 +46,7 @@ BC01,TCGAAGAAAGTTGTCGGTGTCTTTGTG,TCGAAGAAAGTTGTCGGTGTCTTTGTG
 BC02,TCGTCGATTCCGTTTGTAGTCGTCTGT,TCGTCGATTCCGTTTGTAGTCGTCTGT
 ```
 ### Command example:
-*Process several files in inputfolder:*
+*Process "unknown.fasta", only the reads longer than 1800 bp and try to map the primers in the file "primers.csv" :*
 
 `python3 map_my_primers.py -i unknown.fasta -min 1800 -p primers.csv`: 
 
