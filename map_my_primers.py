@@ -13,7 +13,9 @@ import os
 import sys
 from Bio import SeqIO
 import csv
-
+import copy
+#==============================================================================
+version = '2024-11-13'  # version of the script
 #==============================================================================
 def get_arguments():
     def range_limited_float_type(arg):
@@ -150,6 +152,7 @@ def create_search_list(used_bc_list):
     Nested lists: [[name, F_bc, R_bc],...]  [[name, F_cr_bc, R_cr_bc],...]
     '''
     front_bc = sorted(used_bc_list, key=lambda x: x[0])
+    front_bc = [x for x in front_bc if len(x[1]) > 0]
     rear_bc = [[name, compl_reverse(seq)] for name, seq in front_bc]
     return front_bc, rear_bc
 #==============================================================================
@@ -170,7 +173,21 @@ def best_hits(hitlist):
     """
     filter for the best and longest hits for each position
     """
+    hitlist2 = []
+    # if there are several locations for a hit, duplicate them per location
+    # ['16S', 'AAGTCGTAACAAGGTAACCGTCATCGACCATC', [('editDistance', 0), ('alphabetLength', 4), ('locations', [(1519, 1550), (3076, 3107)]), ('cigar', '32=')], 1]
+    for x in hitlist:
+        loc = x[2][2][1]
+        # hitlist.pop(i)
+        for j in range(len(loc)):
+            x[2][2] = list(x[2][2]) # tuple can not be changed
+            x[2][2][1] = [loc[j]]
+            x[2][2] = tuple(x[2][2])
+            hitlist2.append(copy.deepcopy(x))
+    hitlist = hitlist2    
+    
     hitlist.sort(key=lambda x: x[2][2][1][0][1]) # sort based on location
+
     for x in range(0, len(hitlist)-1):
         for y in range(x+1, len(hitlist)):
             dis1, loc1 = hitlist[x][2][0][1], hitlist[x][2][2][1][0]
@@ -212,7 +229,12 @@ def best_hits(hitlist):
                     hitlist[y][-1] = ('') # remove shortest hit
 
     hitlist = [x for x in hitlist if x[-1] != '']
+    
+    hitlist = [str(x) for x in hitlist] # make string of list items
+    hitlist = list(set(hitlist))
+    hitlist = [eval(x) for x in hitlist] # make list of string items
     hitlist.sort(key=lambda x: x[2][2][1][0][1]) # sort based on location
+
     return hitlist
 #==============================================================================
 def find_hits(rec, front_bc, rear_bc, error):
@@ -220,58 +242,72 @@ def find_hits(rec, front_bc, rear_bc, error):
     symbol = re.compile(r'\D') # the letters or symbols to find in edlib result
     m = 'HW'
     a = 'path'
-    hitlist = []
+    hitlist = [' ']
+    hitlist2 = []
     search_list = [x for x in [front_bc, rear_bc] if len(x) > 0]
+    # for lis in search_list:
+    #     lis.sort(key=lambda x: len(x[1]), reverse=True) 
     seq = [x for x in rec.seq] # make a list of the sequence
+    seq2 = seq[:]
     alignlist = [' ']*len(seq)
     namelist = [' ']*len(seq)
-    for i, lis in enumerate(search_list):
-        for name, BC in lis:
-            BC = [x for x in BC]
+    """
+    if a 100% hit is found and there is also a 99% hit, it will only show the 100% hit
+    for that reason the script has to scan 2 times
+    """
+    k1 = -1 # minimum error
+    while len(hitlist) > 0:
+        hitlist = []
+        for i, lis in enumerate(search_list):
+            for name, BC in lis:
+                BC = [x for x in BC]
+                k = len(BC)*error
+                s = align(BC, seq2, m, a, k) 
+                if k > (s['editDistance']) > k1: # if a approximate hit is found
+                    # print(s['locations'])
+                    loc = filter_locations(s['locations'])
+                    s['locations'] = loc
+                    # print(s)
+                    hitlist.append([name, ''.join(BC), list(s.items()), i])
+        
+        hitlist = best_hits(hitlist)
+        
+        for h in hitlist:
+            hitlist2.append(h)
+            BC = [x for x in h[1]]
             k = len(BC)*error
-            s = align(BC, seq, m, a, k) 
-            # print(s)
-            if k > (s['editDistance']) > -1: # if a approximate hit is found
+            s = align(BC, seq2, m, a, k) 
+            # recalculate alignments because gaps can influence locations
+            if k > (s['editDistance']) > k1: # if a approximate hit is found
                 loc = filter_locations(s['locations'])
-                s['locations'] = loc
-                # print(s)
-                hitlist.append([name, ''.join(BC), list(s.items()), i])
-    # for x in hitlist:
-    #     print(x[2])
-    # print('+++++++')
-    hitlist = best_hits(hitlist)
-    # for x in hitlist:
-    #     print(x[2])
-    for h in hitlist:
-        # print(h)
-        BC = [x for x in h[1]]
-        k = len(BC)*error
-        s = align(BC, seq, m, a, k) 
-        # recalculate alignments because gaps can influence locations
-        if k > (s['editDistance']) > -1: # if a approximate hit is found
-            loc = filter_locations(s['locations'])
-            begin, end = s['locations'][0]
-            nu = re.findall(number, s['cigar'])
-            sy = re.findall(symbol, s['cigar']) 
-            scorelist = []
-            for x, y in zip(nu, sy):
-                scorelist += int(x) * [y]
-                # print(scorelist)
-            for i, x in enumerate(scorelist):
-                if x =='D':
-                    BC.insert(i, '-') # insert gap in BC
-                if x == 'I':
-                    seq.insert(begin + i, '-') # inser gap in seq     
-            alignlist[begin:end+1] = BC
-            if h[-1] == 0:
-                name = 'FW_' + h[0] + '>'
-            elif h[-1] == 1:
-                name = '<RV_' + h[0]
-            end = len(name)
-            namelist[begin:end+1] = name
+                for j in range(len(loc)):
+                    begin, end = s['locations'][j]
+                    seq2[begin:end] = '-'*(end-begin) # remove the hit zone from the intermediate sequence
+                    nu = re.findall(number, s['cigar'])
+                    sy = re.findall(symbol, s['cigar']) 
+                    scorelist = []
+                    for x, y in zip(nu, sy):
+                        scorelist += int(x) * [y]
+                    for i, x in enumerate(scorelist):
+                        if x =='D':
+                            BC.insert(i, '-') # insert gap in BC
+                        if x == 'I':
+                            seq.insert(begin + i, '-') # inser gap in seq   
+                            seq2.insert(begin + i, '-') # inser gap in seq   
+                            namelist.insert(begin + i, ' ') # inser gap in namelist   
+                    alignlist[begin:end+1] = BC
+                    if h[-1] == 0:
+                        name = 'FW_' + h[0] + '>'
+                        endname = len(name)
+                        namelist[(end-endname)+1:end+1] = name
+                    elif h[-1] == 1:
+                        name = '<RV_' + h[0]
+                        endname = len(name)
+                        namelist[begin:endname+1] = name
+        k1 += 1  
     with open(outfile, 'a') as of:
         print('>' + str(rec.description), file=of)
-        for x in hitlist:
+        for x in hitlist2:
             print(x[0],x[2], file=of)
         for i in range(0, len(seq), 100):
             print(''.join(seq[i:i+100]), file=of)
