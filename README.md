@@ -35,15 +35,12 @@ amplicon sequencing, MinION, Oxford Nanopore Technologies, barcodes, primers, ad
 
 ### Primer file:
 
-The file with the primers/barcodes/adapters is a csv file (comma or tab separated) with 3 columns: name, forward sequence, reverse sequence (5'-3').  It is best to provide the file not only with the barcode-primers combinations but also with the adapters, barcodes, primers so that the script can find the longest hit or only a partial hit if a complete hit is not found.
+The file with the primers/barcodes/adapters is a csv file (comma or tab separated) with 3 columns: name, forward sequence, reverse sequence (5'-3').  You can also provide the file with the adapters from nanopore.
 ```
-16S,ACGACGTTGTAGAGAGTTTGATCMTGGCTCAG,GATGGTCGATGACGGTTACCTTGTTACGACTT
 LSK114,MMTGTACTTCGTTCAGTTACGTATTGCT,GCAATACGTAACTGAACGAAGTACAGG
 Middle,ACTTCGTTCAGTTACGTATTGCT,
 BC01_16S,TCGAAGAAAGTTGTCGGTGTCTTTGTGACGACGTTGTAGAGAGTTTGATCMTGGCTCAG,TCGAAGAAAGTTGTCGGTGTCTTTGTGGATGGTCGATGACGGTTACCTTGTTACGACTT
 BC02_16S,TCGTCGATTCCGTTTGTAGTCGTCTGTACGACGTTGTAGAGAGTTTGATCMTGGCTCAG,TCGTCGATTCCGTTTGTAGTCGTCTGTGATGGTCGATGACGGTTACCTTGTTACGACTT
-BC01,TCGAAGAAAGTTGTCGGTGTCTTTGTG,TCGAAGAAAGTTGTCGGTGTCTTTGTG
-BC02,TCGTCGATTCCGTTTGTAGTCGTCTGT,TCGTCGATTCCGTTTGTAGTCGTCTGT
 ```
 ### Command example:
 *Process "unknown.fasta", only the reads longer than 1800 bp and try to map the primers in the file "primers.csv" :*
@@ -74,6 +71,12 @@ ACGTATTCACCGTGGCATGCTGATCCACGATTACTAGCGATTCCAACTTCATGTACTCGAGTTGCAGAGTACAATCCGAA
                                                                                                     
 AGCTTAGGCTTGCGCACCTTGCAACCCATTGTAGACACCATTGTAGCACGTGTGTAGCCCACTCCATAAAGGCCATGATGACTCGACATCATCCCCACCT
 ```
+### Release notes:
 
+2024/11/13:
+- bug fixed.  When there was a 100% match of a primer and a 99% match of the same primer in the read, it was only showing the 100% match.  Now it should show both.
 
+2024/08/24:
+- initial release
 > Written with [StackEdit](https://stackedit.io/).
+
