@@ -15,7 +15,7 @@ from Bio import SeqIO
 import csv
 import copy
 #==============================================================================
-version = '2024-11-13'  # version of the script
+version = '2025-05-22'  # version of the script
 #==============================================================================
 def get_arguments():
     def range_limited_float_type(arg):
@@ -261,7 +261,7 @@ def find_hits(rec, front_bc, rear_bc, error):
         for i, lis in enumerate(search_list):
             for name, BC in lis:
                 BC = [x for x in BC]
-                k = len(BC)*error
+                k = (len(BC)-BC.count('N'))*error # N matches everything, so don't count those as length
                 s = align(BC, seq2, m, a, k) 
                 if k > (s['editDistance']) > k1: # if a approximate hit is found
                     # print(s['locations'])
@@ -275,7 +275,7 @@ def find_hits(rec, front_bc, rear_bc, error):
         for h in hitlist:
             hitlist2.append(h)
             BC = [x for x in h[1]]
-            k = len(BC)*error
+            k = (len(BC)-BC.count('N'))*error
             s = align(BC, seq2, m, a, k) 
             # recalculate alignments because gaps can influence locations
             if k > (s['editDistance']) > k1: # if a approximate hit is found
